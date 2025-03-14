@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Select AQI Card
     const aqiCard = document.getElementById("aqiCard");
     const surveillanceCard = document.getElementById("surveillanceCard");
     const signalsCard = document.getElementById("signalsCard");

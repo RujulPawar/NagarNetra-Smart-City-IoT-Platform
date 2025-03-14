@@ -7,6 +7,211 @@
     <link rel="icon" href="/logo.png" type="image/png">
     <link rel="stylesheet" href="/views/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .traffic-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px;
+        }
+
+        .traffic-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .lane-visualization {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .lane-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .sensor-spot {
+            width: 100%;
+            aspect-ratio: 1;
+            background-color: #ddd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .sensor-spot.occupied {
+            background-color: #ff7700;
+            color: white;
+        }
+
+        .lane-info {
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .info-item {
+            text-align: center;
+        }
+
+        .info-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .info-label {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .timer-display {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 20px auto;
+        }
+
+        .timer-circle {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .timer-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: conic-gradient(#4caf50 0% var(--progress), transparent var(--progress) 100%);
+            border-radius: 50%;
+        }
+
+        .timer-text {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            z-index: 2;
+        }
+
+        .timer-seconds {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .timer-label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .signal-duration {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .duration-scale {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .traffic-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+
+        .control-btn {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .control-btn:hover {
+            background: #0056b3;
+        }
+
+        .traffic-light {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .light-container {
+            display: flex;
+            flex-direction: column;
+            background: #333;
+            padding: 10px;
+            border-radius: 10px;
+            width: 60px;
+        }
+
+        .light {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 5px auto;
+            background-color: #444;
+        }
+
+        .light.red.active {
+            background-color: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        .light.yellow.active {
+            background-color: #ffff00;
+            box-shadow: 0 0 10px #ffff00;
+        }
+
+        .light.green.active {
+            background-color: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+    </style>
 </head>
 <body>
     <div class="sidebar">
@@ -24,8 +229,251 @@
     </div>
     <div class="main-content">
         <h1>Adaptive Traffic Signals</h1>
+
+        <div class="traffic-container">
+            <div class="traffic-card">
+                <h2>Lane Density Visualization</h2>
+                <div class="lane-info">
+                    <div class="info-item">
+                        <div class="info-value" id="occupancyPercentage">0%</div>
+                        <div class="info-label">Occupancy</div>
+                    </div>
+                </div>
+
+                <div class="lane-visualization">
+                    <div class="lane-grid">
+                        <div class="sensor-spot" id="spot1">1</div>
+                        <div class="sensor-spot" id="spot2">2</div>
+                        <div class="sensor-spot" id="spot3">3</div>
+                        <div class="sensor-spot" id="spot4">4</div>
+                        <div class="sensor-spot" id="spot5">5</div>
+                        <div class="sensor-spot" id="spot6">6</div>
+                    </div>
+                </div>
+
+                <div class="traffic-controls">
+                    <button class="control-btn" id="testBtn">Simulate Traffic</button>
+                    <button class="control-btn" id="resetBtn">Reset</button>
+                </div>
+            </div>
+
+            <div class="traffic-card">
+                <h2>Signal Timer</h2>
+                <div class="traffic-light">
+                    <div class="light-container">
+                        <div class="light red" id="redLight"></div>
+                        <div class="light yellow" id="yellowLight"></div>
+                        <div class="light green" id="greenLight"></div>
+                    </div>
+                </div>
+
+                <div class="timer-display">
+                    <div class="timer-circle">
+                        <div class="timer-progress" id="timerProgress" style="--progress: 0%"></div>
+                        <div class="timer-text">
+                            <div class="timer-seconds" id="timerSeconds">0</div>
+                            <div class="timer-label">seconds</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="signal-duration">
+                    <h3>Adaptive Signal Duration</h3>
+                    <p>Current duration: <span id="currentDuration">0</span> seconds</p>
+                    <div class="duration-scale">
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-<script src="/adaptivetraffic.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sensorSpots = document.querySelectorAll('.sensor-spot');
+            const occupancyPercentageElement = document.getElementById('occupancyPercentage');
+            const timerSecondsElement = document.getElementById('timerSeconds');
+            const timerProgressElement = document.getElementById('timerProgress');
+            const currentDurationElement = document.getElementById('currentDuration');
+            const redLight = document.getElementById('redLight');
+            const yellowLight = document.getElementById('yellowLight');
+            const greenLight = document.getElementById('greenLight');
+
+            let occupiedSpots = 0;
+            let totalSpots = sensorSpots.length;
+            let timerInterval;
+            let currentTimer = 0;
+            let maxDuration = 0;
+            let isRunning = false;
+
+            // Duration mapping based on occupied spots
+            const durationMap = {
+                1: 3,
+                2: 5,
+                3: 8,
+                4: 10,
+                5: 13,
+                6: 15
+            };
+
+            // Function to update lane visualization
+            function updateLaneVisualization() {
+                const occupancyPercentage = Math.round((occupiedSpots / totalSpots) * 100);
+                occupancyPercentageElement.textContent = `${occupancyPercentage}%`;
+
+                // Update signal duration
+                maxDuration = durationMap[occupiedSpots] || 0;
+                currentDurationElement.textContent = maxDuration;
+
+                // Start timer if not already running
+                if (!isRunning && occupiedSpots > 0) {
+                    startTimer();
+                } else if (occupiedSpots === 0) {
+                    stopTimer();
+                }
+            }
+
+            // Function to handle MQTT message (simulated)
+            function handleMQTTMessage(message) {
+                // In a real implementation, this would parse the MQTT message
+                // For now, we'll just update based on clicked spots
+            }
+
+            // Function to start the traffic signal timer
+            function startTimer() {
+                stopTimer(); // Clear any existing timer
+
+                redLight.classList.remove('active');
+                yellowLight.classList.remove('active');
+                greenLight.classList.add('active');
+
+                currentTimer = 0;
+                maxDuration = durationMap[occupiedSpots] || 3;
+                isRunning = true;
+
+                timerInterval = setInterval(() => {
+                    currentTimer++;
+
+                    if (currentTimer <= maxDuration) {
+                        // Update timer display
+                        timerSecondsElement.textContent = maxDuration - currentTimer;
+
+                        // Update progress circle
+                        const progressPercentage = (currentTimer / maxDuration) * 100;
+                        timerProgressElement.style.setProperty('--progress', `${progressPercentage}%`);
+
+                        // Change to yellow when 2 seconds remain
+                        if (maxDuration - currentTimer === 2) {
+                            greenLight.classList.remove('active');
+                            yellowLight.classList.add('active');
+                        }
+                    } else {
+                        // Timer complete
+                        yellowLight.classList.remove('active');
+                        redLight.classList.add('active');
+
+                        stopTimer();
+                        // In a real implementation, this would cycle to the next direction
+                        // For demo purposes, we'll just reset after 3 seconds
+                        setTimeout(() => {
+                            resetSimulation();
+                        }, 3000);
+                    }
+                }, 1000);
+            }
+
+            // Function to stop the timer
+            function stopTimer() {
+                clearInterval(timerInterval);
+                isRunning = false;
+            }
+
+            // Function to reset the simulation
+            function resetSimulation() {
+                stopTimer();
+                sensorSpots.forEach(spot => {
+                    spot.classList.remove('occupied');
+                });
+                occupiedSpots = 0;
+                currentTimer = 0;
+                maxDuration = 0;
+                timerSecondsElement.textContent = '0';
+                timerProgressElement.style.setProperty('--progress', '0%');
+                currentDurationElement.textContent = '0';
+                redLight.classList.remove('active');
+                yellowLight.classList.remove('active');
+                greenLight.classList.remove('active');
+                updateLaneVisualization();
+            }
+
+            // Event listeners for sensor spots
+            sensorSpots.forEach(spot => {
+                spot.addEventListener('click', () => {
+                    if (!spot.classList.contains('occupied')) {
+                        spot.classList.add('occupied');
+                        occupiedSpots++;
+                    } else {
+                        spot.classList.remove('occupied');
+                        occupiedSpots--;
+                    }
+                    updateLaneVisualization();
+                });
+            });
+
+            // Test button to simulate traffic patterns
+            document.getElementById('testBtn').addEventListener('click', () => {
+                resetSimulation();
+
+                // Simulate random traffic pattern
+                const randomOccupancy = Math.floor(Math.random() * 6) + 1; // 1-6 spots
+
+                // Select random spots to occupy
+                const spotsToOccupy = new Set();
+                while (spotsToOccupy.size < randomOccupancy) {
+                    const randomSpot = Math.floor(Math.random() * totalSpots) + 1;
+                    spotsToOccupy.add(randomSpot);
+                }
+
+                // Occupy selected spots
+                spotsToOccupy.forEach(spotNum => {
+                    const spot = document.getElementById(`spot${spotNum}`);
+                    spot.classList.add('occupied');
+                });
+
+                occupiedSpots = randomOccupancy;
+                updateLaneVisualization();
+            });
+
+            // Reset button
+            document.getElementById('resetBtn').addEventListener('click', resetSimulation);
+
+            // Simulate MQTT subscription
+            function subscribeToMQTT() {
+                // In a real implementation, this would connect to MQTT broker
+                console.log('Simulated MQTT subscription setup');
+
+                // For demo purposes, we'll have a simulated MQTT event
+                // This would be replaced with actual MQTT client.on('message', ...) handler
+            }
+
+            // Initialize
+            subscribeToMQTT();
+
+            // In a real implementation, you would connect this to your MQTT client:
+            /*
+            client.on('message', function(topic, message) {
+                if (topic === 'smart_traffic/density') {
+                    const density = JSON.parse(message.toString());
+                    // Update UI based on density data
+                    updateLaneBasedOnDensity(density);
+                }
+            });
+
+            function updateLaneBasedOnDensity(density) {
+                // Parse density data and update the visualization
+                // This would iterate through the density data and update the spots
+            }
+            */
+        });
+    </script>
 </body>
 </html>

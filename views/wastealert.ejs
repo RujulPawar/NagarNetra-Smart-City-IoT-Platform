@@ -4,9 +4,230 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Waste Alert</title>
-    <link rel="icon" href="/logo.png" type="image/png">
     <link rel="stylesheet" href="/views/styles.css">
+    <script src="/socket.io/socket.io.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .waste-container {
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px;
+            height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+
+        .main-content {
+            height: 100vh;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            min-height: calc(100% - 100px);
+        }
+
+        .camera-section {
+            grid-column: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .data-section {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+        }
+
+        .camera-feed {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #videoFeed {
+            width: 100%;
+            height: calc(100% - 60px);
+            border-radius: 8px;
+            background: #f0f0f0;
+            object-fit: contain;
+            margin-bottom: 20px;
+        }
+
+        .graph-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: 48%;
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: 48%;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .logs-container {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .controls-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .detection-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 0;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .stop-btn {
+            background: linear-gradient(135deg, #dc3545, #f44336);
+            color: white;
+        }
+
+        .status {
+            margin: 0;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-align: center;
+            flex-grow: 1;
+            max-width: 200px;
+        }
+
+        .status.active {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+        }
+
+        .status.inactive {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .logs-table th,
+        .logs-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+
+        .logs-table th {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+        }
+
+        .logs-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .logs-table tr:hover {
+            background-color: #f2f2f2;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        #debug {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .charts-container {
+            display: flex;
+            flex-direction: row;
+            height: 100%;
+            min-height: 220px;
+            gap: 20px;
+            flex-grow: 1;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            height: 100%;
+            min-height: 220px;
+        }
+
+        .send-alert-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-alert-btn:hover {
+            background: linear-gradient(135deg, #c82333, #bd2130);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .send-alert-btn:active {
+            transform: translateY(1px);
+        }
+    </style>
 </head>
 <body>
     <div class="sidebar">
@@ -22,8 +243,64 @@
             <li><a href="/maintenance"><img src="/maintenance.png" alt="Maintenance Icon" class="menu-icon"><span>System Maintenance</span></a></li>
         </ul>
     </div>
+
     <div class="main-content">
         <h1>Waste Alert</h1>
+
+        <div class="waste-container">
+            <div class="controls-wrapper">
+                <div class="detection-controls">
+                    <button class="control-btn start-btn" id="startBtn">Start Detection</button>
+                    <button class="control-btn stop-btn" id="stopBtn">Stop Detection</button>
+                </div>
+                <div id="status" class="status inactive">Detection Status: Stopped</div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="camera-section">
+                    <div class="camera-feed">
+                        <canvas id="videoFeed"></canvas>
+                    </div>
+                </div>
+
+                <div class="data-section">
+                    <div class="graph-section">
+                        <h2>Detection Trends</h2>
+                        <div class="charts-container">
+                            <div class="chart-container">
+                                <canvas id="dumpingBarChart"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="wasteCompositionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="logs-section">
+                        <h2>Waste Alerts</h2>
+                        <div class="logs-container">
+                            <table class="logs-table" id="logsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Garbage Type</th>
+                                        <th>Confidence</th>
+                                        <th>Alert</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Logs will be added here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="wastealertscript.js"></script>
 </body>
 </html>

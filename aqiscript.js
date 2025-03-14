@@ -20,6 +20,10 @@ let visibility = null;
 let sensorHistory = [];
 let redAlertHistory = [];
 let lastAlertTime = null;
+let mq135Analog = null;
+let pm25Analog = null;
+let co2 = null;
+let pm25 = null;
 
 // Initialize Google Map
 let map;
@@ -255,11 +259,26 @@ function initializeChart() {
 
 // Calculate AQI using updated formula (includes CO)
 function calculateAQI() {
-    if (temperature !== null && humidity !== null && pressure !== null && carbonMonoxide !== null) {
-        const DAQI = 0.5 * temperature +
-                     0.8 * humidity +
-                     0.2 * (1020 - pressure) +
-                     (0.01 * carbonMonoxide) + 50;
+    if (temperature !== null && humidity !== null && pressure !== null &&
+        carbonMonoxide !== null && mq135Analog !== null && pm25Analog !== null) {
+
+        // Convert MQ135 Analog Value to CO2 (PPM)
+        const RL = 10; // Load resistor (kΩ)
+        const Ro = 20000; // Sensor resistance in clean air (calibrate this)
+        let Rs = ((1023 - mq135Analog) / mq135Analog) * RL;
+        let CO2 = 116.6020682 * Math.pow((Rs / Ro), -2.769034857);
+
+        // Convert PM2.5 Analog Value to PM2.5 (µg/m³)
+        let PM2_5 = (pm25Analog / 1023) * 500;
+
+        // Calculate Derived AQI (DAQI)
+        const DAQI = (0.5 * temperature) +
+                     (0.8 * humidity) +
+                     (0.2 * (1020 - pressure)) +
+                     (0.01 * carbonMonoxide) +
+                     (0.02 * CO2) +     // CO2 impact on AQI
+                     (0.03 * PM2_5) +   // PM2.5 impact on AQI
+                     50;
 
         return parseFloat(DAQI.toFixed(2));
     }
@@ -340,6 +359,21 @@ ws.onmessage = (event) => {
             carbonMonoxide = value;
             document.getElementById('co').textContent = value.toFixed(2) + ' ppb';
             break;
+        case 'mq135':
+            mq135Analog = value;
+            // Convert MQ135 reading to CO2 PPM
+            const RL = 10; // Load resistor (kΩ)
+            const Ro = 20000; // Sensor resistance in clean air
+            let Rs = ((1023 - value) / value) * RL;
+            co2 = 116.6020682 * Math.pow((Rs / Ro), -2.769034857);
+            document.getElementById('co2').textContent = co2.toFixed(1) + ' ppm';
+            break;
+        case 'dust':
+            pm25Analog = value;
+            // Convert dust sensor reading to PM2.5 µg/m³
+            pm25 = (value / 1023) * 500;
+            document.getElementById('pm25').textContent = pm25.toFixed(1) + ' µg/m³';
+            break;
         case 'latitude':
             latitude = value;
             updateMapMarker();
@@ -360,7 +394,8 @@ ws.onmessage = (event) => {
     if (aqi !== null) {
         updateAQIStatus(aqi);
         const airQuality = getAirQualityStatus(aqi);
-    checkAndStoreAlert(aqi, airQuality);
+        checkAndStoreAlert(aqi, airQuality);
+
         // Log only once per minute
         const now = new Date();
         const currentMinute = now.getMinutes();
@@ -375,6 +410,8 @@ ws.onmessage = (event) => {
                 pressure: pressure,
                 humidity: humidity,
                 carbonMonoxide: carbonMonoxide,
+                co2: co2,
+                pm25: pm25,
                 visibility: visibility,
                 aqi: aqi,
                 airQuality: getAirQualityStatus(aqi)
@@ -387,6 +424,7 @@ ws.onmessage = (event) => {
         }
     }
 };
+
 
 // Add this function to check and store alerts
 function checkAndStoreAlert(aqi, airQuality) {
@@ -533,10 +571,10 @@ function getAirQualityStatus(aqi) {
 }
 // Add the CSV download function
 function downloadCSV() {
-    let csv = 'Date,Time,Temperature (°C),Pressure (hPa),Humidity (%),Carbon Monoxide (ppb),Visibility (km),AQI,Air Quality\n';
+    let csv = 'Date,Time,Temperature (°C),Pressure (hPa),Humidity (%),Carbon Monoxide (ppb),CO2 (ppm),PM2.5 (µg/m³),Visibility (km),AQI,Air Quality\n';
 
     sensorHistory.forEach(reading => {
-        csv += `"${reading.date}","${reading.time}",${reading.temperature},${reading.pressure},${reading.humidity},${reading.carbonMonoxide},${reading.visibility},${reading.aqi},${reading.airQuality}\n`;
+        csv += `"${reading.date}","${reading.time}",${reading.temperature},${reading.pressure},${reading.humidity},${reading.carbonMonoxide},${reading.co2},${reading.pm25},${reading.visibility},${reading.aqi},${reading.airQuality}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -581,6 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const downloadBtn = document.getElementById('downloadCSV');
     const showMapBtn = document.getElementById('showMap');
     const closeAlertsModal = document.getElementById("closeAlertsModal");
+    document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
 
     if (redAlertsBtn) {
         redAlertsBtn.onclick = function() {
